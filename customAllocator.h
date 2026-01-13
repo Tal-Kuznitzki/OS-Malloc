@@ -5,7 +5,8 @@
 * do no edit lines below!
 =============================================================================*/
 #include <stddef.h> //for size_t
-
+#include <pthread.h>
+#include <stdio.h>
 //Part A - single thread memory allocator
 void* customMalloc(size_t size);
 void customFree(void* ptr);
@@ -22,6 +23,12 @@ void* customMTRealloc(void* ptr, size_t size);
 void heapCreate();
 void heapKill();
 
+typedef struct{
+    char*  startOfZone;
+    pthread_mutex_t zoneLock;
+    size_t remainingSpace;
+    Block* zoneBlockList;
+} memZone;
 /*=============================================================================
 * do no edit lines above!
 =============================================================================*/
@@ -36,8 +43,7 @@ void heapKill();
 * Block
 =============================================================================*/
 //suggestion for block usage - feel free to change this
-typedef struct Block
-{
+typedef struct Block{
     size_t size;
     struct Block* next;
     bool free;
