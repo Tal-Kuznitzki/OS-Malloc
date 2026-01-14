@@ -289,10 +289,19 @@ void customFree(void* ptr){
     else if (prev->free){
         prev->size += prev->next->size + sizeof(Block);
         prev->next = prev->next->next;
+        if (prev->next == NULL){
+            if (brk(prev) == -1){
+                printf("<sbrk/brk error>: out of memory\n");
+                exit(1);
+            } 
+        }
     }
     // now if it is the last block, we can free it and decrease brk
     if (prev->next!= NULL && prev->next->next == NULL){
-        brk(prev->next);
+        if (brk(prev->next) == -1) {
+            printf("<sbrk/brk error>: out of memory\n");
+            exit(1);
+        }
         prev->next=NULL;
     }
     return;
@@ -530,12 +539,13 @@ void* customMTRealloc(void* ptr, size_t size) {
 
             if (size >= old_size) {
                 Block *newBlock = customMTMalloc(size);
+                if (!newBlock) return NULL;
                 memcpy(newBlock, ptr, old_size);
                 customMTFree(ptr);
                 return (void *) newBlock;
             }
             if (size < old_size) {
-
+                pthread_mutex_lock(&Zones[i].zoneLock);
                 char *end_ptr_mem = (char *) ptr + size;
                 size_t sizeToFree = old_size - size;
 
@@ -553,11 +563,15 @@ void* customMTRealloc(void* ptr, size_t size) {
                     curr->next = (Block*)end_ptr_mem;
                     curr->size = size;
                     curr->free = false;
+                    pthread_mutex_unlock(&Zones[i].zoneLock);
                     customMTFree((void *) ((Block *) end_ptr_mem + 1));
                     return (void *) (curr + 1);
                 } else {
+                    pthread_mutex_unlock(&Zones[i].zoneLock);
                     Block *newBlock = customMTMalloc(size);
+                    pthread_mutex_lock(&Zones[i].zoneLock);
                     memcpy(newBlock, ptr, size);
+                    pthread_mutex_unlock(&Zones[i].zoneLock);
                     customMTFree(ptr);
                     return (void *) newBlock;
                 }
@@ -587,7 +601,7 @@ void heapCreate(){
         // CRITICAL: Initialize the linked list inside this zone!
         // We create one huge free block that fills the zone.
         Block* initialBlock = (Block*)Zones[i].startOfZone;
-        initialBlock->size = (4 * 1024) - sizeof(Block); // Payload size
+        initialBlock->size =ALIGN_TO_MULT_OF_4( (4 * 1024) - sizeof(Block)); // Payload size
         initialBlock->free = true;
         initialBlock->next = NULL;
 
