@@ -7,6 +7,7 @@
 #include <stddef.h> //for size_t
 #include <pthread.h>
 #include <stdio.h>
+#include <stdbool.h>
 //Part A - single thread memory allocator
 void* customMalloc(size_t size);
 void customFree(void* ptr);
@@ -22,13 +23,6 @@ void* customMTRealloc(void* ptr, size_t size);
 // Part B - helper functions for multi thread memory allocator
 void heapCreate();
 void heapKill();
-
-typedef struct{
-    char*  startOfZone;
-    pthread_mutex_t zoneLock;
-    size_t remainingSpace;
-    Block* zoneBlockList;
-} memZone;
 /*=============================================================================
 * do no edit lines above!
 =============================================================================*/
@@ -48,6 +42,23 @@ typedef struct Block{
     struct Block* next;
     bool free;
 } Block;
+
+typedef struct{
+    char*  startOfZone;
+    pthread_mutex_t zoneLock;
+    size_t remainingSpace;
+    Block* zoneBlockList;
+} memZone;
+
 extern Block* blockList;
+
+void initZoneMT(int index);
+Block* findBestFit(size_t size);
+Block* findBestFitInZoneMT(memZone* zone, size_t size);
+Block* requestSpace(Block* last, size_t size);
+Block* getBlock(void* ptr);
+Block* getAndValidateBlockReturnPrev(void* ptr);
+Block* getAndValidateBlockReturnPrevMT(void* ptr, Block* blockListInSpecificZone );
+
 
 #endif // CUSTOM_ALLOCATOR
