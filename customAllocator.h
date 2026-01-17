@@ -8,6 +8,7 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <unistd.h>
 //Part A - single thread memory allocator
 void* customMalloc(size_t size);
 void customFree(void* ptr);
@@ -32,7 +33,7 @@ void heapKill();
 =============================================================================*/
 #define SBRK_FAIL (void*)(-1)
 #define ALIGN_TO_MULT_OF_4(x) (((((x) - 1) >> 2) << 2) + 4)
-
+#define BRK_FAIL -1
 /*=============================================================================
 * Block
 =============================================================================*/

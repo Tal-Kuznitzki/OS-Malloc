@@ -28,24 +28,28 @@ void test_part_a_basic() {
 
     // 3. Free
     customFree(ptr1);
+
+    printf("pass cfirst\n");
     customFree(arr);
     printf(GRN "PASS: Basic Malloc/Free\n" RST);
+    return;
 }
 
 void test_part_a_coalescing() {
     printf("\n--- Test Part A: Coalescing (Merging Blocks) ---\n");
     // Alloc 3 blocks
     void* p1 = customMalloc(100);
+    printf("malloc 1  good\n");
     void* p2 = customMalloc(100);
     void* p3 = customMalloc(100);
-
+    printf("mallic good\n");
     // Free middle then first (should merge)
     customFree(p2);
-    customFree(p1); 
-    
+    customFree(p1);
+    printf("free goood \n");
     // Alloc a larger block that fits into merged space (200 + overhead)
     void* p4 = customMalloc(200);
-    
+    printf("another onE! good!! \n");
     // If coalescing works, p4 might reuse the space of p1
     if (p4 == p1) {
         printf(GRN "PASS: Blocks merged and reused address %p\n" RST, p4);
@@ -66,7 +70,7 @@ void* thread_func(void* arg) {
         void* ptr = customMTMalloc(size);
         if (ptr) {
             memset(ptr, 0xAA, size); // Write to memory to check race conditions
-            usleep(100); // Simulate work
+            sleep(1); // Simulate work
             customMTFree(ptr);
         } else {
             printf(RED "Thread %d Failed to allocate\n" RST, id);
