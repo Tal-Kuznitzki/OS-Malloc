@@ -48,6 +48,7 @@ typedef struct{
     pthread_mutex_t zoneLock;
     size_t remainingSpace;
     Block* zoneBlockList;
+    struct memZone* next;
 } memZone;
 
 extern Block* blockList;
@@ -59,6 +60,7 @@ Block* requestSpace(Block* last, size_t size);
 Block* getBlock(void* ptr);
 Block* getAndValidateBlockReturnPrev(void* ptr);
 Block* getAndValidateBlockReturnPrevMT(void* ptr, Block* blockListInSpecificZone );
+memZone* create_new_zone();
 
 
 #endif // CUSTOM_ALLOCATOR
