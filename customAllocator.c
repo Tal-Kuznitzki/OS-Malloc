@@ -657,7 +657,7 @@ void heapCreate(){
     }
 }
 void heapKill(){
-    while(zone_list_head->next != NULL) {
+    while(zone_list_head != NULL) {
         //customMTFree( (void*)(Zones[i].startOfZone+1)  );
         pthread_mutex_destroy( &(zone_list_head->zoneLock) );
         zone_list_head->startOfZone = NULL;
