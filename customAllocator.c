@@ -18,7 +18,11 @@ memZone* create_new_zone(){
     memZone* curr = zone_list_head;
     while (curr!=NULL){
         if (curr->next == NULL){
-            memZone* new_zone;
+            memZone* new_zone = sbrk(sizeof(memZone));
+            if (new_zone == (void*)-1) {
+                printf("<sbrk/brk error>: out of memory\n");
+                exit(1);
+            }
             new_zone->startOfZone = (char*)sbrk(4096);
             if (new_zone->startOfZone == SBRK_FAIL) {
                 printf("<sbrk/brk error>: out of memory\n");
@@ -77,22 +81,22 @@ Block* findBestFit(size_t size) {
  */
 
 
-void initZoneMT(int index) {
-    // 1. Get the raw memory (assuming you allocated it via sbrk/mmap)
-    // Note: In your heapCreate, you need to actually Allocate this space.
-    // Assuming Zones[index].startOfZone is already valid:
+// void initZoneMT(int index) {
+//     // 1. Get the raw memory (assuming you allocated it via sbrk/mmap)
+//     // Note: In your heapCreate, you need to actually Allocate this space.
+//     // Assuming Zones[index].startOfZone is already valid:
 
-    // 2. Place the initial Block metadata at the very start of the zone
-    Block* initialBlock = (Block*)Zones[index].startOfZone;
+//     // 2. Place the initial Block metadata at the very start of the zone
+//     Block* initialBlock = (Block*)Zones[index].startOfZone;
 
-    // 3. Set up the block to cover the entire zone (minus metadata size)
-    initialBlock->size = 0;
-    initialBlock->free = true;
-    initialBlock->next = NULL;
+//     // 3. Set up the block to cover the entire zone (minus metadata size)
+//     initialBlock->size = 0;
+//     initialBlock->free = true;
+//     initialBlock->next = NULL;
 
-    // 4. Point the Zone's head to this block
-    Zones[index].zoneBlockList = initialBlock;
-}
+//     // 4. Point the Zone's head to this block
+//     Zones[index].zoneBlockList = initialBlock;
+// }
 Block* findBestFitInZoneMT(memZone* zone, size_t size) {
     Block* current = zone->zoneBlockList;
     Block* bestFit = NULL;
@@ -619,29 +623,37 @@ void heapCreate(){
         perror("Mutex init failed cry");
         return;
     }
-    void* heapStart = sbrk(8 * 4 * 1024);
-    if (heapStart == (void*)-1) {
+    void* metadata = sbrk(sizeof(memZone))
+    if (metadata == (void*)-1) {
         printf("<sbrk/brk error>: out of memory\n");
         exit(1);
     }
+    zone_list_head = metadata;
     memZone* curr = zone_list_head;
     for (int i = 0; i < 8; ++i) {
+        void* heapStart = sbrk(4 * 1024);
         if (pthread_mutex_init(&(curr->zoneLock), NULL) != 0) {
             perror("Mutex init failed");
             return;
         }
-        curr->startOfZone = (char*)heapStart + (i * 4 * 1024);
+        curr->startOfZone = (char*)heapStart;
         curr->remainingSpace = 4 * 1024;
 
         // CRITICAL: Initialize the linked list inside this zone!
         // We create one huge free block that fills the zone.
-        Block* initialBlock = (Block*)Zones[i].startOfZone;
+        Block* initialBlock = (Block*)curr->startOfZone;
         initialBlock->size =ALIGN_TO_MULT_OF_4( (4 * 1024) - sizeof(Block)); // Payload size
         initialBlock->free = true;
         initialBlock->next = NULL;
 
         curr->zoneBlockList = initialBlock; // Head points to this bl
-        curr = curr->next;
+        if (i<7){
+            void* new = sbrk(sizeof(memZone))
+            curr->next = new;
+            curr = curr->next;
+        }
+        
+        
     }
 }
 void heapKill(){

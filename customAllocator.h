@@ -43,7 +43,7 @@ typedef struct Block{
     bool free;
 } Block;
 
-typedef struct{
+typedef struct memZone{
     char*  startOfZone;
     pthread_mutex_t zoneLock;
     size_t remainingSpace;
@@ -53,7 +53,7 @@ typedef struct{
 
 extern Block* blockList;
 
-void initZoneMT(int index);
+//void initZoneMT(int index);
 Block* findBestFit(size_t size);
 Block* findBestFitInZoneMT(memZone* zone, size_t size);
 Block* requestSpace(Block* last, size_t size);
