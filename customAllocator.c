@@ -299,15 +299,16 @@ void customFree(void* ptr){
             blockList->next= blockList->next->next;
             blockList->free = true;
         }
+        blockList->free=true;
         //check origin of the blockList
         if (blockList->next == NULL){
             if (brk(blockList)==BRK_FAIL) {
                 printf("<sbrk/brk error>: out of memory\n");
                 exit(1);
             }
-            blockList=sbrk(0);
+            blockList=NULL;
         }
-        blockList->free=true;
+        
         return;
         }
 
@@ -349,17 +350,24 @@ void customFree(void* ptr){
                 printf("<sbrk/brk error>: out of memory\n");
                 exit(1);
             }
+            if (prev == blockList) {
+                blockList = NULL;
+            }
             return;
         }
     }
     // now if it is the last block, we can free it and decrease brk
     if (prev->next!= NULL && prev->next->next == NULL){
         printf("check last\n");
+        prev->next=NULL;
         if (brk(prev->next) == BRK_FAIL) {
             printf("<sbrk/brk error>: out of memory\n");
             exit(1);
         }
-        prev->next=NULL;
+        if (prev == blockList) {
+                blockList = NULL;
+            }
+        
     }
     return;
 }
