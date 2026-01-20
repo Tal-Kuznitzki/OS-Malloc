@@ -57,6 +57,7 @@ void test_part_a_coalescing() {
         printf(RED "WARN: Block not reused (Address p1: %p, p4: %p)\n" RST, p1, p4);
     }
     customFree(p3);
+    printf("after free p3\n");
     customFree(p4);
 }
 

@@ -250,12 +250,13 @@ Block* getAndValidateBlockReturnPrev(void* ptr) {
     // 2. Calculate where the block metadata *should* be
     //    We cast to Block* and subtract 1 to step back over the header
     Block* candidateBlock = (Block*)ptr - 1;
-
+    printf("inside getandval\n");
     // 3. Traverse the global list to verify this block actually exists
     Block* prev = blockList;
     while (prev->next != NULL) {
         if (prev->next == candidateBlock) {
             // Found it: The pointer is valid and points to the start of a block payload
+            printf("found candidate\n");
             return prev;
         }
         prev = prev->next;
@@ -364,7 +365,8 @@ void customFree(void* ptr){
             printf("<sbrk/brk error>: out of memory\n");
             exit(1);
         }
-        if (prev == blockList) {
+        if ((prev == blockList) && (prev->free == true)) {
+            printf("prev==blocklist\n\n");
                 blockList = NULL;
             }
         
