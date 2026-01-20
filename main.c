@@ -17,17 +17,11 @@
 #define RST   "\x1B[0m"
 
 // --- Global Configuration for Tests ---
-#define THREAD_COUNT 10
-#define ALLOCS_PER_THREAD 50
-
-// ==========================================
-//           HELPER FUNCTIONS
-// ==========================================
-
+#define THREAD_COUNT 30
+#define ALLOCS_PER_THREAD 200
 int is_aligned(void* ptr) {
     return ((size_t)ptr % 4) == 0;
 }
-
 int check_zero(void* ptr, size_t size) {
     unsigned char* p = (unsigned char*)ptr;
     for(size_t i = 0; i < size; i++) {
@@ -35,14 +29,8 @@ int check_zero(void* ptr, size_t size) {
     }
     return 1;
 }
-
-// ==========================================
-//           PART A: BASIC TESTS
-// ==========================================
-
 void test_part_a_basic() {
     printf(YEL "--- Test Part A: Basic Malloc/Free ---\n" RST);
-
     int* ptr1 = (int*)customMalloc(sizeof(int));
     if (!ptr1) { printf(RED "FAIL: customMalloc returned NULL\n" RST); return; }
     *ptr1 = 42;
@@ -57,7 +45,6 @@ void test_part_a_basic() {
     customFree(arr);
     printf(GRN "PASS: Basic Malloc/Free\n" RST);
 }
-
 void test_part_a_coalescing() {
     printf(YEL "\n--- Test Part A: Coalescing (Merging Blocks) ---\n" RST);
     void* p1 = customMalloc(100);
@@ -77,7 +64,6 @@ void test_part_a_coalescing() {
     customFree(p3);
     customFree(p4);
 }
-
 void test_alignment() {
     printf(YEL "\n--- Test: Alignment ---\n" RST);
     void* p1 = customMalloc(1);
@@ -93,7 +79,6 @@ void test_alignment() {
     customFree(p2);
     customFree(p3);
 }
-
 void test_splitting() {
     printf(YEL "\n--- Test: Splitting Logic ---\n" RST);
     void* p1 = customMalloc(200);
@@ -113,7 +98,6 @@ void test_splitting() {
     customFree(p3);
     customFree(p4);
 }
-
 void test_best_fit() {
     printf(YEL "\n--- Test: Best Fit Strategy ---\n" RST);
     void* h1 = customMalloc(200);
@@ -138,7 +122,6 @@ void test_best_fit() {
     customFree(f2);
     customFree(p);
 }
-
 void test_sbrk_release() {
     printf(YEL "\n--- Test: Memory Release (sbrk decrease) ---\n" RST);
     void* start_brk = sbrk(0);
@@ -160,7 +143,6 @@ void test_sbrk_release() {
         printf(RED "FAIL: Memory leak at end of heap (brk did not decrease).\n" RST);
     }
 }
-
 void test_comb(){
     void* p1 = customMalloc(100);
     void* p2 = customMalloc(100);
@@ -181,11 +163,6 @@ void test_comb(){
 
     printf(GRN "test_comb GOOD\n" RST);
 }
-
-// ==========================================
-//           CALLOC & REALLOC TESTS (Part A)
-// ==========================================
-
 void test_calloc_large() {
     printf(YEL "\n--- Test: Calloc Large Allocation ---\n" RST);
     size_t size = 1024 * 100;
@@ -202,7 +179,6 @@ void test_calloc_large() {
         printf(RED "FAIL: Large calloc failed to allocate.\n" RST);
     }
 }
-
 void test_realloc_null_and_zero() {
     printf(YEL "\n--- Test: Realloc Edge Cases (NULL/Zero) ---\n" RST);
 
@@ -221,7 +197,6 @@ void test_realloc_null_and_zero() {
         customFree(ptr2);
     }
 }
-
 void test_realloc_expansion() {
     printf(YEL "\n--- Test: Realloc Expansion ---\n" RST);
     void* p1 = customMalloc(100);
@@ -243,7 +218,6 @@ void test_realloc_expansion() {
     customFree(p2);
     customFree(barrier);
 }
-
 void test_realloc_shrink_split() {
     printf(YEL "\n--- Test: Realloc Shrink (Splitting) ---\n" RST);
 
@@ -269,7 +243,6 @@ void test_realloc_shrink_split() {
     customFree(p2);
     customFree(p3);
 }
-
 void test_realloc_variations_A() {
     printf(YEL "\n--- Test: Realloc Variations (Part A) ---\n" RST);
 
@@ -299,12 +272,6 @@ void test_realloc_variations_A() {
     printf(GRN "PASS: Big expansion preserved data.\n" RST);
     customFree(p3_new);
 }
-
-// ==========================================
-//           PART B TESTS (Threaded)
-// ==========================================
-
-// --- Worker for Calloc Stress ---
 void* calloc_thread_worker(void* arg) {
     long id = (long)arg;
     for (int i = 0; i < ALLOCS_PER_THREAD; i++) {
@@ -325,7 +292,6 @@ void* calloc_thread_worker(void* arg) {
     }
     return NULL;
 }
-
 void test_mt_calloc_threaded() {
     printf(YEL "\n--- Test Part B: MT Calloc (Threaded Stress) ---\n" RST);
     pthread_t threads[THREAD_COUNT];
@@ -337,8 +303,6 @@ void test_mt_calloc_threaded() {
     }
     printf(GRN "PASS: MT Calloc threaded test completed successfully.\n" RST);
 }
-
-// --- Worker for Realloc Stress ---
 void* realloc_thread_worker(void* arg) {
     long id = (long)arg;
     for (int i = 0; i < ALLOCS_PER_THREAD; i++) {
@@ -382,7 +346,6 @@ void* realloc_thread_worker(void* arg) {
     }
     return NULL;
 }
-
 void test_mt_realloc_threaded() {
     printf(YEL "\n--- Test Part B: MT Realloc (Threaded Stress) ---\n" RST);
     pthread_t threads[THREAD_COUNT];
@@ -394,7 +357,6 @@ void test_mt_realloc_threaded() {
     }
     printf(GRN "PASS: MT Realloc threaded test completed successfully.\n" RST);
 }
-
 void* stress_worker(void* arg) {
     int id = *(int*)arg;
     for (int i = 0; i < 20; i++) {
@@ -412,7 +374,6 @@ void* stress_worker(void* arg) {
     }
     return NULL;
 }
-
 void test_mt_zone_overflow() {
     printf(YEL "\n--- Test Part B: Zone Overflow (Creating New Zones) ---\n" RST);
     pthread_t threads[10];
@@ -426,11 +387,6 @@ void test_mt_zone_overflow() {
     }
     printf(GRN "PASS: MT Stress test completed.\n" RST);
 }
-
-// ==========================================
-//           COMBINED TESTS
-// ==========================================
-
 void test_combined_lifecycle() {
     printf(YEL "\n--- Test Combined: Mixed A & B Lifecycle ---\n" RST);
     printf(BLU "Step 1: Part A Malloc\n" RST);
@@ -466,18 +422,8 @@ void test_combined_lifecycle() {
         printf(RED "FAIL: Part A failed after Heap Kill.\n" RST);
     }
 }
-
-// ==========================================
-//           MAIN
-// ==========================================
-
 int main() {
     heapCreate();
-    printf("==========================================\n");
-    printf("      RUNNING ROBUSTNESS SUITE\n");
-    printf("==========================================\n");
-
-    // --- Part A Basic & Edge Cases ---
     test_part_a_basic();
     test_alignment();
     test_splitting();
@@ -485,24 +431,15 @@ int main() {
     test_best_fit();
     test_sbrk_release();
     test_comb();
-
-    // Calloc / Realloc specific
     test_calloc_large();
     test_realloc_null_and_zero();
     test_realloc_expansion();
     test_realloc_shrink_split();
     test_realloc_variations_A();
-
-    // --- Part B Tests ---
-    test_mt_calloc_threaded();   // NEW: Threaded Calloc Test
-    test_mt_realloc_threaded();  // NEW: Threaded Realloc Test
+    test_mt_calloc_threaded();
+    test_mt_realloc_threaded();
     test_mt_zone_overflow();
-
-    // --- Combined Lifecycle ---
     test_combined_lifecycle();
-
     heapKill();
-
-    printf("\n" GRN "ALL ROBUSTNESS TESTS COMPLETED." RST "\n");
     return 0;
 }
