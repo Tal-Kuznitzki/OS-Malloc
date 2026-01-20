@@ -9,7 +9,7 @@ all: main
 main: main.o customAllocator.o
 	$(CC) $(CFLAGS) -o main main.o customAllocator.o $(LDFLAGS)
 
-main.o: main.c customAllocator.h
+main.o: main_old.c customAllocator.h
 	$(CC) $(CFLAGS) -c main.c
 
 customAllocator.o: customAllocator.c customAllocator.h

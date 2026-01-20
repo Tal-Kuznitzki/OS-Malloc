@@ -11,18 +11,13 @@ int memZoneIndx =0 ;
 pthread_mutex_t memZoneIndxLock;
 pthread_mutex_t num_of_zones_lock;
 int num_of_zones = 8;
-/**
- * Helper: Find the Best Fit block.
- * Guidelines: Iterate through the list and find the free block that is
- * closest in size to 'size' but still larger or equal to it.
- * Source: [cite: 70, 84]
- */
+
 memZone* create_new_zone(){
-    printf("inside CREATE NEW ZONE \n");
+ //   printf("inside CREATE NEW ZONE \n");
     memZone* curr = zone_list_head;
     while (curr!=NULL){
         if (curr->next == NULL){
-            printf("before brk");
+         //   printf("before brk");
             memZone* new_zone = sbrk(sizeof(memZone));
             if (new_zone == (void*)-1) {
                 printf("<sbrk/brk error>: out of memory\n");
@@ -65,11 +60,11 @@ Block* findBestFit(size_t size) {
     while (current != NULL) {
         // We only care about free blocks that are large enough
         if (current->free && current->size >= size) {
-            // If we haven't found a fit yet, or this one is tighter (smaller) than the previous best
+
             if (bestFit == NULL || current->size < bestFit->size) {
                 bestFit = current;
 
-                // Optimization: If we find an exact match, we can stop searching early
+
                 if (current->size == size) {
                     return current;
                 }
@@ -79,41 +74,23 @@ Block* findBestFit(size_t size) {
     }
     return bestFit;
 }
-/**
- * Helper: Find Best Fit specifically within a locked zone.
- * Returns: Pointer to the Block metadata if found, NULL otherwise.
- */
 
 
-// void initZoneMT(int index) {
-//     // 1. Get the raw memory (assuming you allocated it via sbrk/mmap)
-//     // Note: In your heapCreate, you need to actually Allocate this space.
-//     // Assuming Zones[index].startOfZone is already valid:
 
-//     // 2. Place the initial Block metadata at the very start of the zone
-//     Block* initialBlock = (Block*)Zones[index].startOfZone;
 
-//     // 3. Set up the block to cover the entire zone (minus metadata size)
-//     initialBlock->size = 0;
-//     initialBlock->free = true;
-//     initialBlock->next = NULL;
-
-//     // 4. Point the Zone's head to this block
-//     Zones[index].zoneBlockList = initialBlock;
-// }
 Block* findBestFitInZoneMT(memZone* zone, size_t size) {
     Block* current = zone->zoneBlockList;
     Block* bestFit = NULL;
 
     while (current != NULL) {
-        // We look for a FREE block that fits the requested size
+
         if (current->free && current->size >= size) {
 
-            // Best Fit Logic: Pick the smallest sufficient block
+
             if (bestFit == NULL || current->size < bestFit->size) {
                 bestFit = current;
 
-                // Optimization: Exact match found
+
                 if (current->size == size) {
                     return current;
                 }
@@ -123,35 +100,26 @@ Block* findBestFitInZoneMT(memZone* zone, size_t size) {
     }
     return bestFit;
 }
-/**
- * Helper: Request new space from the OS using sbrk.
- * Guidelines:
- * 1. Increment program break.
- * 2. Initialize the new Block struct.
- * 3. Handle allocation failures (SBRK_FAIL).
- * Source: [cite: 49, 69]
- */
+
 Block* requestSpace(Block* last, size_t size) {
     Block* block;
 
     // Calculate total size needed: struct metadata + requested payload
     size_t totalSize = size + sizeof(Block);
 
-    // Request memory from OS
     block = (Block*)sbrk(totalSize);
 
-    // Check for sbrk failure
+
     if (block == SBRK_FAIL) {
         printf("<sbrk/brk error>: out of memory\n");
         exit(1);
     }
 
-    // Initialize the new block metadata
+
     block->size = size;
     block->next = NULL;
     block->free = false;
 
-    // Link the new block to the end of the list
     if (last) {
         last->next = block;
     }
@@ -159,58 +127,41 @@ Block* requestSpace(Block* last, size_t size) {
     return block;
 }
 
-/**
- * Helper: Get the pointer to the Block metadata from the user pointer.
- * This is useful for free() and realloc().
- */
+
 Block* getBlock(void* ptr) {
     return (Block*)ptr - 1;
 }
 
-/**
- * Main Allocation Function Skeleton
- */
+
 void* customMalloc(size_t size) {
-    printf("hello mallic\n");
+ //   printf("hello mallic\n");
     if (size == 0) {
-        printf("???????");
+       // printf("???????");
         return NULL;
     }
-
-    // 1. Alignment: Ensure size is a multiple of 4 [cite: 121]
     size_t alignedSize = ALIGN_TO_MULT_OF_4(size);
 
     Block* block;
 
-    // 2. Initial Case: List is empty
+
     if (blockList == NULL) {
-        printf("inside the if \n");
+       // printf("inside the if \n");
         block = requestSpace(NULL, alignedSize);
-        printf("requesteed space good\n");
+      //  printf("requesteed space good\n");
         if (!block) {
             return NULL;
         }
-        blockList = block; // Initialize the head
+        blockList = block;
     } else {
-        // 3. Search for a free block (Best Fit)
+
         Block* bestFit = findBestFit(alignedSize);
-        printf("after bestfit\n");
+       // printf("after bestfit\n");
         if (bestFit) {
-            // Found a reusable block
+
             block = bestFit;
             block->free = false;
-            // TODO: Implement splitting logic here if the block is significantly larger
-            // than requested (optional based on spec, but good for efficiency).
-
-
             size_t remainingSize = bestFit->size - alignedSize;
 
-/*            if  ( bestFit->size > 2 *  ( alignedSize + sizeof(block)) ){
-                // we want to know if we have enough space to split and add a node.
-
-                //now we split to the best fit and the rest....
-
-            }*/
             if (remainingSize >= sizeof(Block) + 4){ //basic size is 4 byte at minimum
                 block->size =   alignedSize;  // sizeof(Block)  ;
 
@@ -226,8 +177,6 @@ void* customMalloc(size_t size) {
                 block->next = newBlock;
             }
         } else {
-            // 4. No suitable block found, request space
-            // We need to find the last block to link the new one
             Block* last = blockList;
             while (last->next != NULL) {
                 last = last->next;
@@ -239,50 +188,38 @@ void* customMalloc(size_t size) {
             }
         }
     }
-
-    // 5. Return pointer to the data (byte after the struct)
-    // Pointer arithmetic: (block + 1) moves the pointer by sizeof(Block) bytes.
     return (void*)(block + 1);
 }
 Block* getAndValidateBlockReturnPrev(void* ptr) {
-    // 1. Basic safety check
     if (ptr == NULL) {
         return NULL;
     }
-
-    // 2. Calculate where the block metadata should be
-    //    We cast to Block* and subtract 1 to step back over the header
     Block* candidateBlock = (Block*)ptr - 1;
-    printf("inside getandval\n");
-    // 3. Traverse the global list to verify this block actually exists
+  //  printf("inside getandval\n");
+
     Block* prev = blockList;
-    printf("got prev\n");
+ //   printf("got prev\n");
     while (prev->next != NULL) {
-        printf("inside prev->next\n");
+ //       printf("inside prev->next\n");
         if (prev->next == candidateBlock) {
-            // Found it: The pointer is valid and points to the start of a block payload
-            printf("found candidate\n");
+    //       printf("found candidate\n");
             return prev;
         }
         prev = prev->next;
     }
-    printf("we end\n");
+  //  printf("we end\n");
     return NULL;
 }
 Block* getAndValidateBlockReturnPrevMT(void* ptr, Block* blockListInSpecificZone ) {
-    // 1. Basic safety check
+
     if (ptr == NULL) {
         return NULL;
     }
-    // 2. Calculate where the block metadata should be
-    //    We cast to Block* and subtract 1 to step back over the header
-    Block* candidateBlock = (Block*)ptr - 1;
 
-    // 3. Traverse the global list to verify this block actually exists
+    Block* candidateBlock = (Block*)ptr - 1;
     Block* prev = blockListInSpecificZone;
     while (prev->next != NULL) {
         if (prev->next == candidateBlock) {
-            // Found it: The pointer is valid and points to the start of a block payload
             return prev;
         }
         prev = prev->next;
@@ -296,20 +233,19 @@ void customFree(void* ptr){
     }
 
     Block* candidateBlock = (Block*)ptr - 1;
-    printf("found canidate\n");
+  //  printf("found canidate\n");
     if (blockList == candidateBlock){
-        printf(" canidate is top\n");
+   //     printf(" canidate is top\n");
         //check next
         if (blockList->next!=NULL && blockList->next->free == true){
-            printf("next inside top\n");
+         //   printf("next inside top\n");
             blockList->size += blockList->next->size+ sizeof(Block);
             blockList->next= blockList->next->next;
             blockList->free = true;
         }
         blockList->free=true;
-        //check origin of the blockList
         if (blockList->next == NULL){
-            printf("chk orgn\n");
+       //     printf("chk orgn\n");
             if (brk(blockList)==BRK_FAIL) {
                 printf("<sbrk/brk error>: out of memory\n");
                 exit(1);
@@ -320,9 +256,9 @@ void customFree(void* ptr){
         return;
     }
 
-    printf("before getand val canidate\n");
+  //  printf("before getand val canidate\n");
     Block* prev = getAndValidateBlockReturnPrev(ptr);
-    printf("after getand val canidate\n");
+ //   printf("after getand val canidate\n");
     if (prev == NULL) { //that means we didnt find the right one in the ll
         printf("<free error>: passed non-heap pointer\n");
         return;
@@ -331,18 +267,18 @@ void customFree(void* ptr){
     prev->next->free=true;
     //check both sides
 
-    printf("before big IF \n");
+  //  printf("before big IF \n");
 
     // now if it is the last block, we can free it and decrease brk
     if (prev->next!= NULL && prev->next->next == NULL){
-        printf("check last\n");
+   //     printf("check last\n");
         if (prev->free){
-            printf("check prev\n");
+          //  printf("check prev\n");
             prev->size += prev->next->size + sizeof(Block);
             prev->next = prev->next->next;
-            printf("IN  prev\n");
+          //  printf("IN  prev\n");
             if (prev->next == NULL){
-                printf("gem is right before BRK\n");
+              //  printf("gem is right before BRK\n");
                 if (brk(prev) == BRK_FAIL){
                     printf("<sbrk/brk error>: out of memory\n");
                     exit(1);
@@ -359,13 +295,13 @@ void customFree(void* ptr){
             exit(1);
         }
         if ((prev == blockList) && (prev->free == true)) {
-            printf("prev==blocklist\n\n");
+      //      printf("prev==blocklist\n\n");
             blockList = NULL;
         }
     }
 
    else if  ( (prev->free) && (prev->next->next!= NULL && prev->next->next->free) ){
-        printf("check both sides inside\n");
+     //   printf("check both sides inside\n");
         prev->next->size += prev->next->next->size + sizeof(Block);
 
         prev->size += prev->next->size + sizeof(Block);
@@ -374,18 +310,18 @@ void customFree(void* ptr){
     }
         //check next
     else if( prev->next->next!= NULL && prev->next->next->free) {
-        printf("check next\n");
+     //   printf("check next\n");
         prev->next->size += prev->next->next->size + sizeof(Block);
         prev->next->next = prev->next->next->next;
     }
         //check prev
     else if (prev->free){
-        printf("check prev\n");
+    //    printf("check prev\n");
         prev->size += prev->next->size + sizeof(Block);
         prev->next = prev->next->next;
-        printf("IN  prev\n");
+     //   printf("IN  prev\n");
         if (prev->next == NULL){
-            printf("gem is right before BRK\n");
+       //     printf("gem is right before BRK\n");
             if (brk(prev) == BRK_FAIL){
                 printf("<sbrk/brk error>: out of memory\n");
                 exit(1);
@@ -457,7 +393,7 @@ void* customRealloc(void* ptr, size_t size){
             return (void*)newBlock;
         }
     }
-    printf("DEBUG BAD IN REALLOC");
+   // printf("DEBUG BAD IN REALLOC");
     return NULL;
 }
 
@@ -479,16 +415,16 @@ void* customMTMalloc(size_t size) {
     memZone* curr = zone_list_head;
     memZone* chosen;
     for (int i = 0; i<localIndx+1 ; i++){
-        printf("section IS %d \n ",i);
+       // printf("section IS %d \n ",i);
         chosen = curr;
         curr = curr->next;
     }
-    printf("GOT CHOSEN ONE !!\n");
+   // printf("GOT CHOSEN ONE !!\n");
     pthread_mutex_lock((&chosen->zoneLock));
     if (chosen->remainingSpace < alignedSize + sizeof(Block)) { //there isn't enough space...
-        printf("try to create new zone\n");
+    //    printf("try to create new zone\n");
         memZone* new_zone = create_new_zone();
-        printf("Create new ZONE good \n");
+    //    printf("Create new ZONE good \n");
         if (new_zone == NULL){
             printf("OUT OF MEMORY WE ARE HERE");
             pthread_mutex_unlock(&num_of_zones_lock);
@@ -498,33 +434,29 @@ void* customMTMalloc(size_t size) {
         //chosen = new_zone;
 
     }
-    printf("not iside chosen remaining space\n");
+  //  printf("not iside chosen remaining space\n");
     for (int i = 0; i < num_of_zones; ++i) {
        // int currZoneIndx = (localIndx + i) % num_of_zones;
-        printf("iter number IS %d \n ",i);
+    //    printf("iter number IS %d \n ",i);
         if (chosen->remainingSpace >= (alignedSize + sizeof(Block))){
 
-            printf("before bestFit\n");
+        //    printf("before bestFit\n");
             Block *block = findBestFitInZoneMT(chosen, alignedSize);
-            printf("after bestFit\n");
+       //     printf("after bestFit\n");
             if (block != NULL) {
-                // --- FOUND A BLOCK ---
-                // Mark as used immediately
+
                 block->free = false;
-                // --- SPLITTING LOGIC (From Part A) ---
+
                 size_t remainingSize = block->size - alignedSize;
-                // Check if we have enough space for a Header + min 4 bytes payload
+
                 if (remainingSize >= sizeof(Block) + 4) {
-                    // A. Update the size of the allocated block
+
                     block->size = alignedSize;
-                    // B. Calculate address of the new neighbor block
-                    //    Use (char*) to ensure byte-precise pointer arithmetic
                     Block *newBlock = (Block *) ((char *) block + sizeof(Block) + alignedSize);
-                    // C. Initialize the new split block
+
                     newBlock->size = remainingSize - sizeof(Block);
                     newBlock->free = true;
-                    newBlock->next = block->next; // Point to whatever block->next was
-                    // D. Link current block to the new split block
+                    newBlock->next = block->next;
                     block->next = newBlock;
                 }
 
@@ -550,7 +482,7 @@ void* customMTMalloc(size_t size) {
     }
     pthread_mutex_unlock((&chosen->zoneLock));
     pthread_mutex_unlock(&num_of_zones_lock);
-    printf("OUT OF MEMORY WE ARE HERE");
+ //   printf("OUT OF MEMORY WE ARE HERE");
     return NULL;
 }
 void customMTFree(void* ptr){
@@ -701,7 +633,7 @@ void* customMTRealloc(void* ptr, size_t size) {
             }
         }
     }
-    printf("REALLOCMT ERRRRR\n");
+   // printf("REALLOCMT ERRRRR\n");
     return NULL;
 }
 void heapCreate(){
@@ -731,14 +663,12 @@ void heapCreate(){
         curr->startOfZone = (char*)heapStart;
         curr->remainingSpace = 4 * 1024;
 
-        // CRITICAL: Initialize the linked list inside this zone!
-        // We create one huge free block that fills the zone.
         Block* initialBlock = (Block*)curr->startOfZone;
-        initialBlock->size =ALIGN_TO_MULT_OF_4( (4 * 1024) - sizeof(Block)); // Payload size
+        initialBlock->size =ALIGN_TO_MULT_OF_4( (4 * 1024) - sizeof(Block));
         initialBlock->free = true;
         initialBlock->next = NULL;
 
-        curr->zoneBlockList = initialBlock; // Head points to this bl
+        curr->zoneBlockList = initialBlock;
         if (i<7){
             void* new = (void*) sbrk(sizeof(memZone));
             curr->next = new;
