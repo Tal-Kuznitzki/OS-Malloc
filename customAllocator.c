@@ -8,7 +8,8 @@
 Block* blockList = NULL;
 memZone* zone_list_head;
 int memZoneIndx =0 ;
-pthread_mutex_t memZoneIndxLock ;
+pthread_mutex_t memZoneIndxLock;
+int num_of_zones = 8;
 /**
  * Helper: Find the Best Fit block.
  * Guidelines: Iterate through the list and find the free block that is
@@ -439,7 +440,7 @@ void* customMTMalloc(size_t size) {
     size_t alignedSize = ALIGN_TO_MULT_OF_4(size);
 
     pthread_mutex_lock(&memZoneIndxLock);
-    int localIndx = memZoneIndx % 8;
+    int localIndx = memZoneIndx % num_of_zones;
     memZoneIndx++;
     pthread_mutex_unlock(&memZoneIndxLock);
     memZone* curr = zone_list_head;
@@ -448,50 +449,60 @@ void* customMTMalloc(size_t size) {
         chosen = curr;
         curr = curr->next;
     }
-    // for (int i = 0; i < 8; ++i) {
-    //     int currZoneIndx = (localIndx + i) % 8;
+    
         if (chosen->remainingSpace < alignedSize + sizeof(Block)) { //there isn't enough space...
             memZone* new_zone = create_new_zone();
             if (new_zone == NULL){
                 printf("OUT OF MEMORY WE ARE HERE");
                 return NULL;
             }
-            chosen = new_zone;
+            num_of_zones ++;
+            //chosen = new_zone;
 
-        } 
-        pthread_mutex_lock((&chosen->zoneLock));
-        Block *block = findBestFitInZoneMT(chosen, alignedSize);
-        if (block != NULL) {
-            // --- FOUND A BLOCK ---
-            // Mark as used immediately
-            block->free = false;
-            // --- SPLITTING LOGIC (From Part A) ---
-            size_t remainingSize = block->size - alignedSize;
-            // Check if we have enough space for a Header + min 4 bytes payload
-            if (remainingSize >= sizeof(Block) + 4) {
-                // A. Update the size of the allocated block
-                block->size = alignedSize;
-                // B. Calculate address of the new neighbor block
-                //    Use (char*) to ensure byte-precise pointer arithmetic
-                Block *newBlock = (Block *) ((char *) block + sizeof(Block) + alignedSize);
-                // C. Initialize the new split block
-                newBlock->size = remainingSize - sizeof(Block);
-                newBlock->free = true;
-                newBlock->next = block->next; // Point to whatever block->next was
-                // D. Link current block to the new split block
-                block->next = newBlock;
-            }
-            // Update free space stats for the zone (Total Free - Allocated Payload - Header Overhead)
-            // Note: If we split, we only "lost" the alignedSize + metadata of the first part.
-            // If we didn't split, we "lost" the whole block->size + metadata.
-            chosen->remainingSpace -= (block->size + sizeof(Block));
-            // Unlock and return User Pointer
-            pthread_mutex_unlock(&chosen->zoneLock);
-            return (void *) (block + 1);
+        }
+    for (int i = currZoneIndx; i < num_of_zones; ++i) {
+        if (chosen->next == NULL){
+            chosen = zone_list_head;
+        }
+        else {
+            chosen = chosen->next;
+        }
+
+        if (chosen->remainingSpace >= (alignedSize + sizeof(Block))){
+            pthread_mutex_lock((&chosen->zoneLock));
+            Block *block = findBestFitInZoneMT(chosen, alignedSize);
+            if (block != NULL) {
+                // --- FOUND A BLOCK ---
+                // Mark as used immediately
+                block->free = false;
+                // --- SPLITTING LOGIC (From Part A) ---
+                size_t remainingSize = block->size - alignedSize;
+                // Check if we have enough space for a Header + min 4 bytes payload
+                if (remainingSize >= sizeof(Block) + 4) {
+                    // A. Update the size of the allocated block
+                    block->size = alignedSize;
+                    // B. Calculate address of the new neighbor block
+                    //    Use (char*) to ensure byte-precise pointer arithmetic
+                    Block *newBlock = (Block *) ((char *) block + sizeof(Block) + alignedSize);
+                    // C. Initialize the new split block
+                    newBlock->size = remainingSize - sizeof(Block);
+                    newBlock->free = true;
+                    newBlock->next = block->next; // Point to whatever block->next was
+                    // D. Link current block to the new split block
+                    block->next = newBlock;
+                }
+            
+                chosen->remainingSpace -= (block->size + sizeof(Block));
+                // Unlock and return User Pointer
+                pthread_mutex_unlock(&chosen->zoneLock);
+                return (void *) (block + 1);
         
         }
-        pthread_mutex_unlock((&chosen->zoneLock));
-    
+
+        }
+
+    }     
+    pthread_mutex_unlock((&chosen->zoneLock));
     printf("OUT OF MEMORY WE ARE HERE");
     return NULL;
 }
