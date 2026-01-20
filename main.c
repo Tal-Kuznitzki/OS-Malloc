@@ -20,9 +20,16 @@
 #define THREAD_COUNT 30
 #define ALLOCS_PER_THREAD 200
 int is_aligned(void* ptr) {
+     
+    /*
+    check if a size is aligned to 4
+    */
     return ((size_t)ptr % 4) == 0;
 }
 int check_zero(void* ptr, size_t size) {
+    /*
+        check if data is zeros (for calloc test)
+    */
     unsigned char* p = (unsigned char*)ptr;
     for(size_t i = 0; i < size; i++) {
         if (p[i] != 0) return 0;
@@ -30,6 +37,11 @@ int check_zero(void* ptr, size_t size) {
     return 1;
 }
 void test_part_a_basic() {
+    /*
+        test customMalloc functionality is as expected
+        test customCalloc basic functionality
+        test customFree basic functionality (free int var and free arr)
+    */
     printf(YEL "--- Test Part A: Basic Malloc/Free ---\n" RST);
     int* ptr1 = (int*)customMalloc(sizeof(int));
     if (!ptr1) { printf(RED "FAIL: customMalloc returned NULL\n" RST); return; }
@@ -46,6 +58,10 @@ void test_part_a_basic() {
     printf(GRN "PASS: Basic Malloc/Free\n" RST);
 }
 void test_part_a_coalescing() {
+    /*
+        test free in the middle of the heap
+        test "findBestFit" - malloc after release of memory should find the free block and allocate to it
+    */
     printf(YEL "\n--- Test Part A: Coalescing (Merging Blocks) ---\n" RST);
     void* p1 = customMalloc(100);
     void* p2 = customMalloc(100);
@@ -65,6 +81,9 @@ void test_part_a_coalescing() {
     customFree(p4);
 }
 void test_alignment() {
+    /*
+        allocate non 4-aligned buffers and verify that customMalloc allocates only 4-aligned buffers (blocks)
+    */
     printf(YEL "\n--- Test: Alignment ---\n" RST);
     void* p1 = customMalloc(1);
     void* p2 = customMalloc(5);
@@ -80,6 +99,13 @@ void test_alignment() {
     customFree(p3);
 }
 void test_splitting() {
+    /*
+        allocate a big block of memory, and another block
+        free the first block
+        allocate another block, smaller than the first one
+        verify that the new block is allocated in the address of the freed block 
+        and that malloc have seperated the free block properly
+    */
     printf(YEL "\n--- Test: Splitting Logic ---\n" RST);
     void* p1 = customMalloc(200);
     void* p4 = customMalloc(50);
@@ -99,6 +125,9 @@ void test_splitting() {
     customFree(p4);
 }
 void test_best_fit() {
+    /*
+        test "findBestFit" functionality - according to the best fit creteria we learned at the course
+    */
     printf(YEL "\n--- Test: Best Fit Strategy ---\n" RST);
     void* h1 = customMalloc(200);
     void* f1 = customMalloc(10);
@@ -122,7 +151,7 @@ void test_best_fit() {
     customFree(f2);
     customFree(p);
 }
-void test_sbrk_release() {
+void test_sbrk_release() {  // TODO: maybe remove this test ??
     printf(YEL "\n--- Test: Memory Release (sbrk decrease) ---\n" RST);
     void* start_brk = sbrk(0);
 
@@ -144,6 +173,14 @@ void test_sbrk_release() {
     }
 }
 void test_comb(){
+    /*
+        test multiple cases of free that requires combinning blocks:
+        -free from head of the list, than second and than last (merge to next)
+        -free from the middle , than first (merge to prev)
+        -free from the end of the list when the list is not empty (shrink brk)
+        -free from the end of the list when the list is empty (all free) - close heap
+        -free from the beginning of the list when there are more blocks afterwards
+    */
     void* p1 = customMalloc(100);
     void* p2 = customMalloc(100);
     void* p3 = customMalloc(100);
@@ -164,6 +201,9 @@ void test_comb(){
     printf(GRN "test_comb GOOD\n" RST);
 }
 void test_calloc_large() {
+    /*
+        use customCalloc to allocate a big buffer and make sure its all zeros
+    */
     printf(YEL "\n--- Test: Calloc Large Allocation ---\n" RST);
     size_t size = 1024 * 100;
     void* ptr = customCalloc(1, size);
@@ -180,6 +220,13 @@ void test_calloc_large() {
     }
 }
 void test_realloc_null_and_zero() {
+    /*
+       test customRealloc functionality:
+       -use realloc with NULL ptr - should behave like malloc
+       -test realloc when new size is larger than original size
+       -test realloc when new size is smaller than original size, verify that the heap is shrinking
+
+    */
     printf(YEL "\n--- Test: Realloc Edge Cases (NULL/Zero) ---\n" RST);
 
     void* ptr = customRealloc(NULL, 100);
@@ -197,7 +244,7 @@ void test_realloc_null_and_zero() {
         customFree(ptr2);
     }
 }
-void test_realloc_expansion() {
+void test_realloc_expansion() { // TODO: maybe unify this with the past one ??
     printf(YEL "\n--- Test: Realloc Expansion ---\n" RST);
     void* p1 = customMalloc(100);
     memset(p1, 0xAA, 100);
@@ -218,7 +265,7 @@ void test_realloc_expansion() {
     customFree(p2);
     customFree(barrier);
 }
-void test_realloc_shrink_split() {
+void test_realloc_shrink_split() { // TODO: maybe unify this with the past one ??
     printf(YEL "\n--- Test: Realloc Shrink (Splitting) ---\n" RST);
 
     void* p1 = customMalloc(200);
@@ -244,9 +291,17 @@ void test_realloc_shrink_split() {
     customFree(p3);
 }
 void test_realloc_variations_A() {
+    /*
+       test customRealloc functionality:
+       -use realloc with NULL ptr - should behave like malloc
+       -test realloc when new size is larger than original size
+       -test realloc when new size is smaller than original size, verify that the heap is shrinking
+       -test realloc when new size is equal to original size
+    
+    */
     printf(YEL "\n--- Test: Realloc Variations (Part A) ---\n" RST);
 
-    // 1. Equal Size
+    // Equal Size
     int* p1 = (int*)customMalloc(sizeof(int) * 10);
     for(int i=0; i<10; i++) p1[i] = i;
     int* p1_new = (int*)customRealloc(p1, sizeof(int) * 10);
@@ -254,7 +309,7 @@ void test_realloc_variations_A() {
     printf(GRN "PASS: Realloc equal size preserved data.\n" RST);
     customFree(p1_new);
 
-    // 2. Small Shrink (No Split)
+    // Small Shrink (No Split)
     void* p2 = customMalloc(64);
     void* p2_new = customRealloc(p2, 60);
     if (p2_new == p2) {
@@ -264,7 +319,7 @@ void test_realloc_variations_A() {
     }
     customFree(p2_new);
 
-    // 3. Big Expansion
+    // Big Expansion
     char* p3 = (char*)customMalloc(10);
     strcpy(p3, "ABC");
     char* p3_new = (char*)customRealloc(p3, 2000);
@@ -273,6 +328,10 @@ void test_realloc_variations_A() {
     customFree(p3_new);
 }
 void* calloc_thread_worker(void* arg) {
+    /*
+       test customMTCalloc functionality
+    
+    */
     long id = (long)arg;
     for (int i = 0; i < ALLOCS_PER_THREAD; i++) {
         size_t num = 50;
@@ -293,6 +352,10 @@ void* calloc_thread_worker(void* arg) {
     return NULL;
 }
 void test_mt_calloc_threaded() {
+    /*
+       crreate the threads to run "calloc_thread_worker()" 
+    
+    */
     printf(YEL "\n--- Test Part B: MT Calloc (Threaded Stress) ---\n" RST);
     pthread_t threads[THREAD_COUNT];
     for (long i = 0; i < THREAD_COUNT; i++) {
@@ -304,17 +367,20 @@ void test_mt_calloc_threaded() {
     printf(GRN "PASS: MT Calloc threaded test completed successfully.\n" RST);
 }
 void* realloc_thread_worker(void* arg) {
+    /*
+       test customMTRealloc functionality
+    
+    */
     long id = (long)arg;
     for (int i = 0; i < ALLOCS_PER_THREAD; i++) {
-        // 1. Initial Malloc
+        
         size_t size = 64;
         unsigned char* ptr = (unsigned char*)customMTMalloc(size);
         if (!ptr) continue;
 
-        // Fill data
         memset(ptr, (int)id, size);
 
-        // 2. Expand Realloc
+        // Expand Realloc
         size_t large_size = 128;
         unsigned char* ptr2 = (unsigned char*)customMTRealloc(ptr, large_size);
         if (ptr2) {
@@ -328,7 +394,7 @@ void* realloc_thread_worker(void* arg) {
             }
         }
 
-        // 3. Shrink Realloc
+        // Shrink Realloc
         size_t small_size = 32;
         unsigned char* ptr3 = (unsigned char*)customMTRealloc(ptr, small_size);
         if (ptr3) {
@@ -347,6 +413,10 @@ void* realloc_thread_worker(void* arg) {
     return NULL;
 }
 void test_mt_realloc_threaded() {
+    /*
+       create the threads to run "realloc_thread_worker()" 
+    
+    */
     printf(YEL "\n--- Test Part B: MT Realloc (Threaded Stress) ---\n" RST);
     pthread_t threads[THREAD_COUNT];
     for (long i = 0; i < THREAD_COUNT; i++) {
@@ -358,6 +428,11 @@ void test_mt_realloc_threaded() {
     printf(GRN "PASS: MT Realloc threaded test completed successfully.\n" RST);
 }
 void* stress_worker(void* arg) {
+    /*
+       create a lot of stress on the threads - multiple malloc and free
+       -check Multi-Threaded functionality (make sure there is no deadlock...) 
+    
+    */
     int id = *(int*)arg;
     for (int i = 0; i < 20; i++) {
         size_t size = (rand() % 2000) + 500;
@@ -375,6 +450,10 @@ void* stress_worker(void* arg) {
     return NULL;
 }
 void test_mt_zone_overflow() {
+    /*
+       create the threads to run "stress_worker()" 
+    
+    */
     printf(YEL "\n--- Test Part B: Zone Overflow (Creating New Zones) ---\n" RST);
     pthread_t threads[10];
     int ids[10];
@@ -388,17 +467,20 @@ void test_mt_zone_overflow() {
     printf(GRN "PASS: MT Stress test completed.\n" RST);
 }
 void test_combined_lifecycle() {
+    /*
+       Test part A and part B simultaneously (customMalloc, customMTMalloc, customFree, customMTFree)
+    
+    */
     printf(YEL "\n--- Test Combined: Mixed A & B Lifecycle ---\n" RST);
     printf(BLU "Step 1: Part A Malloc\n" RST);
     void* a_ptr1 = customMalloc(128);
     memset(a_ptr1, 'A', 128);
 
-    printf(BLU "Step 2: Heap Create (Part B Init)\n" RST);
-    printf(BLU "Step 3: Part B Malloc\n" RST);
+    printf(BLU "Step 2: Part B Malloc\n" RST);
     void* b_ptr1 = customMTMalloc(256);
     if(b_ptr1) memset(b_ptr1, 'B', 256);
 
-    printf(BLU "Step 4: Part A Malloc (After Heap Create)\n" RST);
+    printf(BLU "Step 3: Part A Malloc\n" RST);
     void* a_ptr2 = customMalloc(64);
     if(a_ptr2) memset(a_ptr2, 'C', 64);
 
@@ -406,13 +488,12 @@ void test_combined_lifecycle() {
     if (b_ptr1 && *(char*)b_ptr1 != 'B') printf(RED "FAIL: b_ptr1 corrupted\n" RST);
     if (a_ptr2 && *(char*)a_ptr2 != 'C') printf(RED "FAIL: a_ptr2 corrupted\n" RST);
 
-    printf(BLU "Step 5: Freeing mixed pointers\n" RST);
+    printf(BLU "Step 4: Freeing mixed pointers\n" RST);
     customFree(a_ptr2);
     customMTFree(b_ptr1);
     customFree(a_ptr1);
 
-    printf(BLU "Step 6: Heap Kill\n" RST);
-    printf(BLU "Step 7: Part A Malloc (After Heap Kill)\n" RST);
+    printf(BLU "Step 5: Part A Malloc\n" RST);
     void* a_ptr3 = customMalloc(50);
     if(a_ptr3) {
         memset(a_ptr3, 'D', 50);
