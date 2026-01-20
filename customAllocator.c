@@ -9,6 +9,7 @@ Block* blockList = NULL;
 memZone* zone_list_head;
 int memZoneIndx =0 ;
 pthread_mutex_t memZoneIndxLock;
+pthread_mutex_t num_of_zones_lock;
 int num_of_zones = 8;
 /**
  * Helper: Find the Best Fit block.
@@ -17,14 +18,17 @@ int num_of_zones = 8;
  * Source: [cite: 70, 84]
  */
 memZone* create_new_zone(){
+    printf("inside CREATE NEW ZONE \n");
     memZone* curr = zone_list_head;
     while (curr!=NULL){
         if (curr->next == NULL){
+            printf("before brk");
             memZone* new_zone = sbrk(sizeof(memZone));
             if (new_zone == (void*)-1) {
                 printf("<sbrk/brk error>: out of memory\n");
                 exit(1);
             }
+
             new_zone->startOfZone = (char*)sbrk(4096);
             if (new_zone->startOfZone == SBRK_FAIL) {
                 printf("<sbrk/brk error>: out of memory\n");
@@ -46,7 +50,7 @@ memZone* create_new_zone(){
             new_zone->next = NULL;
 
             curr->next = new_zone;
-
+            return new_zone;
         }
         else {
             curr = curr->next;
@@ -54,8 +58,6 @@ memZone* create_new_zone(){
     }
     return NULL;
 }
-
-
 Block* findBestFit(size_t size) {
     Block* current = blockList;
     Block* bestFit = NULL;
@@ -254,7 +256,9 @@ Block* getAndValidateBlockReturnPrev(void* ptr) {
     printf("inside getandval\n");
     // 3. Traverse the global list to verify this block actually exists
     Block* prev = blockList;
+    printf("got prev\n");
     while (prev->next != NULL) {
+        printf("inside prev->next\n");
         if (prev->next == candidateBlock) {
             // Found it: The pointer is valid and points to the start of a block payload
             printf("found candidate\n");
@@ -262,9 +266,9 @@ Block* getAndValidateBlockReturnPrev(void* ptr) {
         }
         prev = prev->next;
     }
+    printf("we end\n");
     return NULL;
 }
-
 Block* getAndValidateBlockReturnPrevMT(void* ptr, Block* blockListInSpecificZone ) {
     // 1. Basic safety check
     if (ptr == NULL) {
@@ -297,6 +301,7 @@ void customFree(void* ptr){
         printf(" canidate is top\n");
         //check next
         if (blockList->next!=NULL && blockList->next->free == true){
+            printf("next inside top\n");
             blockList->size += blockList->next->size+ sizeof(Block);
             blockList->next= blockList->next->next;
             blockList->free = true;
@@ -304,6 +309,7 @@ void customFree(void* ptr){
         blockList->free=true;
         //check origin of the blockList
         if (blockList->next == NULL){
+            printf("chk orgn\n");
             if (brk(blockList)==BRK_FAIL) {
                 printf("<sbrk/brk error>: out of memory\n");
                 exit(1);
@@ -326,7 +332,39 @@ void customFree(void* ptr){
     //check both sides
 
     printf("before big IF \n");
-    if  ( (prev->free) && (prev->next->next!= NULL && prev->next->next->free) ){
+
+    // now if it is the last block, we can free it and decrease brk
+    if (prev->next!= NULL && prev->next->next == NULL){
+        printf("check last\n");
+        if (prev->free){
+            printf("check prev\n");
+            prev->size += prev->next->size + sizeof(Block);
+            prev->next = prev->next->next;
+            printf("IN  prev\n");
+            if (prev->next == NULL){
+                printf("gem is right before BRK\n");
+                if (brk(prev) == BRK_FAIL){
+                    printf("<sbrk/brk error>: out of memory\n");
+                    exit(1);
+                }
+                if (prev == blockList) {
+                    blockList = NULL;
+                }
+                return;
+            }
+        }
+        prev->next=NULL;
+        if (brk(prev->next) == BRK_FAIL) {
+            printf("<sbrk/brk error>: out of memory\n");
+            exit(1);
+        }
+        if ((prev == blockList) && (prev->free == true)) {
+            printf("prev==blocklist\n\n");
+            blockList = NULL;
+        }
+    }
+
+   else if  ( (prev->free) && (prev->next->next!= NULL && prev->next->next->free) ){
         printf("check both sides inside\n");
         prev->next->size += prev->next->next->size + sizeof(Block);
 
@@ -358,20 +396,7 @@ void customFree(void* ptr){
             return;
         }
     }
-    // now if it is the last block, we can free it and decrease brk
-    if (prev->next!= NULL && prev->next->next == NULL){
-        printf("check last\n");
-        prev->next=NULL;
-        if (brk(prev->next) == BRK_FAIL) {
-            printf("<sbrk/brk error>: out of memory\n");
-            exit(1);
-        }
-        if ((prev == blockList) && (prev->free == true)) {
-            printf("prev==blocklist\n\n");
-            blockList = NULL;
-        }
 
-    }
     return;
 }
 void* customCalloc(size_t nmemb, size_t size){
@@ -438,40 +463,50 @@ void* customRealloc(void* ptr, size_t size){
 
 void* customMTMalloc(size_t size) {
     size_t alignedSize = ALIGN_TO_MULT_OF_4(size);
+    pthread_mutex_lock(&num_of_zones_lock);
+
 
     pthread_mutex_lock(&memZoneIndxLock);
+
+
     int localIndx = memZoneIndx % num_of_zones;
     memZoneIndx++;
+
+
     pthread_mutex_unlock(&memZoneIndxLock);
+
+
     memZone* curr = zone_list_head;
     memZone* chosen;
-    for (int i = 0; i<localIndx ; i++){
+    for (int i = 0; i<localIndx+1 ; i++){
+        printf("section IS %d \n ",i);
         chosen = curr;
         curr = curr->next;
     }
-
+    printf("GOT CHOSEN ONE !!\n");
+    pthread_mutex_lock((&chosen->zoneLock));
     if (chosen->remainingSpace < alignedSize + sizeof(Block)) { //there isn't enough space...
+        printf("try to create new zone\n");
         memZone* new_zone = create_new_zone();
+        printf("Create new ZONE good \n");
         if (new_zone == NULL){
             printf("OUT OF MEMORY WE ARE HERE");
+            pthread_mutex_unlock(&num_of_zones_lock);
             return NULL;
         }
-        num_of_zones ++;
+        num_of_zones++;
         //chosen = new_zone;
 
     }
+    printf("not iside chosen remaining space\n");
     for (int i = 0; i < num_of_zones; ++i) {
        // int currZoneIndx = (localIndx + i) % num_of_zones;
-        if (chosen->next == NULL){
-            chosen = zone_list_head;
-        }
-        else {
-            chosen = chosen->next;
-        }
-
+        printf("iter number IS %d \n ",i);
         if (chosen->remainingSpace >= (alignedSize + sizeof(Block))){
-            pthread_mutex_lock((&chosen->zoneLock));
+
+            printf("before bestFit\n");
             Block *block = findBestFitInZoneMT(chosen, alignedSize);
+            printf("after bestFit\n");
             if (block != NULL) {
                 // --- FOUND A BLOCK ---
                 // Mark as used immediately
@@ -496,14 +531,25 @@ void* customMTMalloc(size_t size) {
                 chosen->remainingSpace -= (block->size + sizeof(Block));
                 // Unlock and return User Pointer
                 pthread_mutex_unlock(&chosen->zoneLock);
+                pthread_mutex_unlock(&num_of_zones_lock);
                 return (void *) (block + 1);
 
             }
-
         }
 
+        if (chosen->next == NULL){
+            pthread_mutex_unlock((&chosen->zoneLock));
+            chosen = zone_list_head;
+            pthread_mutex_lock((&chosen->zoneLock));
+        }
+        else {
+            pthread_mutex_unlock((&chosen->zoneLock));
+            chosen = chosen->next;
+            pthread_mutex_lock((&chosen->zoneLock));
+        }
     }
     pthread_mutex_unlock((&chosen->zoneLock));
+    pthread_mutex_unlock(&num_of_zones_lock);
     printf("OUT OF MEMORY WE ARE HERE");
     return NULL;
 }
@@ -659,6 +705,12 @@ void* customMTRealloc(void* ptr, size_t size) {
     return NULL;
 }
 void heapCreate(){
+    if  ( (pthread_mutex_init(&num_of_zones_lock,NULL)) != 0) {
+        perror("Mutex init failed cry");
+        return;
+    }
+
+
     if  ( (pthread_mutex_init(&memZoneIndxLock,NULL)) != 0) {
         perror("Mutex init failed cry");
         return;

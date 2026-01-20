@@ -198,11 +198,15 @@ void* thread_func_basic(void* arg) {
     int id = *(int*)arg;
     for (int i = 0; i < 50; i++) {
         size_t size = (rand() % 128) + 1;
+        printf("before malloc\n");
         void* ptr = customMTMalloc(size);
+        printf("after malloc\n");
         if (ptr) {
             memset(ptr, 0xAA, size); // Write to memory to check race conditions
             usleep(100); // Simulate work
+            printf("before free\n");
             customMTFree(ptr);
+            printf("after free\n");
         } else {
             printf(RED "Thread %d Failed to allocate\n" RST, id);
         }
@@ -283,12 +287,11 @@ int main() {
 
     test_part_a_basic();
     test_alignment();
-    printf("@@@@@@@@@@@@@@@@\n");
-/*    test_splitting();
+    test_splitting();
     test_part_a_coalescing();
     test_best_fit();
     test_realloc_expansion();
-    test_sbrk_release();*/
+    test_sbrk_release();
 
     printf("\n==========================================\n");
     printf("      RUNNING PART B TESTS (Multi Thread)\n");
