@@ -1,10 +1,10 @@
 #define _DEFAULT_SOURCE
 #include <unistd.h>
 #include "customAllocator.h"
-#include <stdio.h> // For error printing if needed
-#include <string.h> // For memcpy, memset
-#include <stdlib.h> // For exit
-// Global head of the linked list (declared extern in .h)
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
 Block* blockList = NULL;
 memZone* zone_list_head;
 int memZoneIndx =0 ;
@@ -235,17 +235,17 @@ void customFree(void* ptr){
     Block* candidateBlock = (Block*)ptr - 1;
   //  printf("found canidate\n");
     if (blockList == candidateBlock){
-   //     printf(" canidate is top\n");
+   //    printf(" canidate is top\n");
         //check next
         if (blockList->next!=NULL && blockList->next->free == true){
-         //   printf("next inside top\n");
+      //      printf("next inside top\n");
             blockList->size += blockList->next->size+ sizeof(Block);
             blockList->next= blockList->next->next;
             blockList->free = true;
         }
         blockList->free=true;
         if (blockList->next == NULL){
-       //     printf("chk orgn\n");
+        //    printf("chk orgn\n");
             if (brk(blockList)==BRK_FAIL) {
                 printf("<sbrk/brk error>: out of memory\n");
                 exit(1);
@@ -256,7 +256,7 @@ void customFree(void* ptr){
         return;
     }
 
-  //  printf("before getand val canidate\n");
+ //  printf("before getand val canidate\n");
     Block* prev = getAndValidateBlockReturnPrev(ptr);
  //   printf("after getand val canidate\n");
     if (prev == NULL) { //that means we didnt find the right one in the ll
@@ -267,18 +267,18 @@ void customFree(void* ptr){
     prev->next->free=true;
     //check both sides
 
-  //  printf("before big IF \n");
+   // printf("before big IF \n");
 
     // now if it is the last block, we can free it and decrease brk
     if (prev->next!= NULL && prev->next->next == NULL){
    //     printf("check last\n");
         if (prev->free){
-          //  printf("check prev\n");
+      //      printf("check prev\n");
             prev->size += prev->next->size + sizeof(Block);
             prev->next = prev->next->next;
-          //  printf("IN  prev\n");
+         //   printf("IN  prev\n");
             if (prev->next == NULL){
-              //  printf("gem is right before BRK\n");
+           //     printf("gem is right before BRK\n");
                 if (brk(prev) == BRK_FAIL){
                     printf("<sbrk/brk error>: out of memory\n");
                     exit(1);
@@ -289,13 +289,14 @@ void customFree(void* ptr){
                 return;
             }
         }
-        prev->next=NULL;
+
         if (brk(prev->next) == BRK_FAIL) {
             printf("<sbrk/brk error>: out of memory\n");
             exit(1);
         }
+        prev->next=NULL;
         if ((prev == blockList) && (prev->free == true)) {
-      //      printf("prev==blocklist\n\n");
+       //     printf("prev==blocklist\n\n");
             blockList = NULL;
         }
     }
@@ -310,7 +311,7 @@ void customFree(void* ptr){
     }
         //check next
     else if( prev->next->next!= NULL && prev->next->next->free) {
-     //   printf("check next\n");
+    //    printf("check next\n");
         prev->next->size += prev->next->next->size + sizeof(Block);
         prev->next->next = prev->next->next->next;
     }
@@ -321,7 +322,7 @@ void customFree(void* ptr){
         prev->next = prev->next->next;
      //   printf("IN  prev\n");
         if (prev->next == NULL){
-       //     printf("gem is right before BRK\n");
+        //    printf("before BRK\n");
             if (brk(prev) == BRK_FAIL){
                 printf("<sbrk/brk error>: out of memory\n");
                 exit(1);
@@ -364,10 +365,9 @@ void* customRealloc(void* ptr, size_t size){
         return (void*)newBlock;
     }
     if (size<old_size){
-
         char* end_ptr_mem =(char*)ptr+size ;
-        size_t sizeToFree = old_size -size ;
-
+        size_t sizeToFree = old_size - size ;
+       // char start_ptr_to_free = old_size - size ;
         Block* curr;
         if ( blockList==( (Block*)ptr - 1) ) {
             curr = blockList;
@@ -378,6 +378,7 @@ void* customRealloc(void* ptr, size_t size){
         Block* BlocktoFree =(Block*)end_ptr_mem;
         BlocktoFree->free=true;
         if (sizeToFree>sizeof(Block)){
+         //   printf("@@@@@@\n");
             BlocktoFree->size= sizeToFree - sizeof(Block);
             BlocktoFree->next= curr->next;
             curr->next=(Block*)end_ptr_mem;
