@@ -1,4 +1,3 @@
-/* main.c */
 #define _DEFAULT_SOURCE
 #include "customAllocator.h"
 #include <stdio.h>
@@ -15,12 +14,10 @@
 #define YEL   "\x1B[33m"
 #define BLU   "\x1B[34m"
 #define RST   "\x1B[0m"
-
-// --- Global Configuration for Tests ---
 #define THREAD_COUNT 30
 #define ALLOCS_PER_THREAD 200
 int is_aligned(void* ptr) {
-     
+
     /*
     check if a size is aligned to 4
     */
@@ -151,31 +148,10 @@ void test_best_fit() {
     customFree(f2);
     customFree(p);
 }
-void test_sbrk_release() {  // TODO: maybe remove this test ??
-    printf(YEL "\n--- Test: Memory Release (sbrk decrease) ---\n" RST);
-    void* start_brk = sbrk(0);
-
-    void* p = customMalloc(4000);
-    void* mid_brk = sbrk(0);
-
-    if (mid_brk <= start_brk) {
-        printf(RED "FAIL: Heap did not grow.\n" RST);
-        return;
-    }
-
-    customFree(p);
-    void* end_brk = sbrk(0);
-
-    if (end_brk < mid_brk) {
-        printf(GRN "PASS: Program break decreased after freeing last block.\n" RST);
-    } else {
-        printf(RED "FAIL: Memory leak at end of heap (brk did not decrease).\n" RST);
-    }
-}
 void test_comb(){
     /*
         test multiple cases of free that requires combinning blocks:
-        -free from head of the list, than second and than last (merge to next)
+        -free from head of the list, then second and then last (merge to next)
         -free from the middle , than first (merge to prev)
         -free from the end of the list when the list is not empty (shrink brk)
         -free from the end of the list when the list is empty (all free) - close heap
@@ -244,28 +220,54 @@ void test_realloc_null_and_zero() {
         customFree(ptr2);
     }
 }
-void test_realloc_expansion() { // TODO: maybe unify this with the past one ??
-    printf(YEL "\n--- Test: Realloc Expansion ---\n" RST);
-    void* p1 = customMalloc(100);
-    memset(p1, 0xAA, 100);
+void test_realloc_expansion() {
+    /*
+      test customRealloc functionality:
+       - see taht it moved the entire data and that it is still intact
 
-    void* barrier = customMalloc(10);
-    void* p2 = customRealloc(p1, 200);
+    */
+    printf(YEL "\n--- Test: Realloc Expansion (Full Data Verification) ---\n" RST);
 
-    if (p2 != p1) {
-        if (((unsigned char*)p2)[0] == 0xAA && ((unsigned char*)p2)[99] == 0xAA) {
-            printf(GRN "PASS: Block moved and data preserved.\n" RST);
-        } else {
-            printf(RED "FAIL: Data corrupted during realloc.\n" RST);
-        }
-    } else {
-        printf(RED "FAIL: Realloc should have moved (barrier exists).\n" RST);
+    size_t size_original = 100;
+    size_t size_new = 200;
+    unsigned char* p1 = (unsigned char*)customMalloc(size_original);
+    if (!p1) { printf(RED "FAIL: Malloc returned NULL\n" RST); return; }
+    for (size_t i = 0; i < size_original; ++i) {
+        p1[i] = (unsigned char)(i % 256);
     }
 
+    void* barrier = customMalloc(10);
+    unsigned char* p2 = (unsigned char*)customRealloc(p1, size_new);
+    if (p2 == p1) {
+        printf(RED "FAIL: Realloc should have moved (barrier exists).\n" RST);
+        // Clean up even if fail
+        customFree(p2);
+        customFree(barrier);
+        return;
+    }
+    bool data_intact = true;
+    for (size_t i = 0; i < size_original; ++i) {
+        if (p2[i] != (unsigned char)(i % 256)) {
+            printf(RED "FAIL: Data corrupted at byte %zu. Expected %d, got %d\n" RST,
+                   i, (unsigned char)(i % 256), p2[i]);
+            data_intact = false;
+            break;
+        }
+    }
+    if (data_intact) {
+        printf(GRN "PASS: Block moved and ALL data preserved correctly.\n" RST);
+    }
     customFree(p2);
     customFree(barrier);
 }
-void test_realloc_shrink_split() { // TODO: maybe unify this with the past one ??
+void test_realloc_shrink_split() { // TODO: maybe unify this with the past one ?? , nah its good
+
+    /*
+  test customRealloc functionality:
+   - see taht shrinking does not change the pointer, and that splitting the remainder works well within the margin
+     (inculding metadata
+
+*/
     printf(YEL "\n--- Test: Realloc Shrink (Splitting) ---\n" RST);
 
     void* p1 = customMalloc(200);
@@ -510,7 +512,6 @@ int main() {
     test_splitting();
     test_part_a_coalescing();
     test_best_fit();
-    test_sbrk_release();
     test_comb();
     test_calloc_large();
     test_realloc_null_and_zero();
